@@ -1,0 +1,26 @@
+#!/bin/bash
+#
+# vi: ts=2 sts=2 sw=2 ft=bash
+#
+# Squash all branch commits.
+set -u
+
+main() {
+  [[ -n ${GIT_TRACE:+trace_on} ]] && set -x && trap 'set +x' EXIT ERR
+
+  # TODO: Improve the hard-coded branch name `master`.
+  local mb="$(git merge-base master @)"
+  if [[ "$(git rev-parse @^)" == "$mb" ]]; then
+    echo 'no need to squash.'
+    exit
+  elif git diff --cached --numstat | grep -q .; then
+    echo 'error: cannot squash: Your index contains uncommitted changes.'
+    exit 1
+  fi
+
+  echo 'Squash following commits...'
+  git log --oneline $mb..
+  GIT_SEQUENCE_EDITOR='f(){ sed -i 2,$s/^pick/squash/ $1; }; f' git rebase -i $mb || git rebase --abort
+}
+
+main "$@"

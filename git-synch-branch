@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# vi: ts=2 sts=2 sw=2 ft=bash
+#
+# Sync a branch.
+#
+# Usage:
+#   git synch-branch [<branch-name>]
+#
+# Inspired by: https://stackoverflow.com/questions/3216360/merge-update-and-pull-git-branches-without-using-checkouts
+set -eu
+
+main() {
+  [[ -n ${GIT_TRACE:+trace_on} ]] && set -x && trap 'set +x' EXIT ERR
+
+  # If not specify a branch name, defaults to the main branch.
+  local br=${1:-$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)}
+  local old=$(git rev-parse $br)
+
+  echo "Synchronizing: $br ($(git rev-parse --short $old))"
+	# ローカルとリモートブランチの名前が異なる場合は以下では駄目かも。
+  git fetch origin $br:$br \
+    && (
+      [[ $old == $(git rev-parse $br) ]] \
+        && echo "Already up to date." \
+        || echo "Updated $(git rev-parse --short $old)..$(git rev-parse --short $br)  $br"
+    )
+}
+
+main "$@"

@@ -1,0 +1,52 @@
+#!/bin/bash
+#
+# vi: ts=2 sts=2 sw=2 ft=bash
+#
+# Fuzzy find a file and show it with `core.editor`.
+#
+# Usage:
+#   git fuzzy-show [<tree-ish>] <pattern>
+# Config variables:
+#   `core.editor`
+#     This configuration or the `$GIT_EDITOR` environment variable is required.
+#   `git-fuzzy-show.async`
+#     If true, execute an editor asynchronously. False by default.
+# Dependencies:
+#   git-fuzzy-find
+set -u
+
+show_with_editor() {
+  local rev=$1
+  local copath=$2
+  git show "${rev}" >"${copath}"
+  eval ${GIT_EDITOR:-$(git config core.editor)} "${copath}"
+  rm "${copath}"
+}
+
+main() {
+  [[ -n ${GIT_TRACE:+trace_on} ]] && set -x && trap 'set +x' EXIT ERR
+
+  local revs
+  revs=($(git fuzzy-find "$@")) || exit 1
+  if (( ${#revs[@]} > 1 )); then
+    echo 'error: ambiguous file path.' >&2
+    printf '%s\n' "${revs[@]}" >&2
+    exit 1
+  fi
+  echo "Found: ${revs[0]}" >&2
+
+  local hash=$(git rev-parse --short ${revs[0]%%:*})
+  local filename=$(basename ${revs[0]##*:})
+  local copath
+  copath=$(mktemp -t "${filename%.*}-${hash}.XXX.${filename##*.}") || exit 1
+
+  if [[ "$(git config --type=bool git-fuzzy-show.async)" == "true" ]]; then
+    {
+      show_with_editor "${revs[0]}" "${copath}"
+    } &
+  else
+    show_with_editor "${revs[0]}" "${copath}"
+  fi
+}
+
+main "$@"

@@ -1,0 +1,26 @@
+#!/bin/bash
+#
+# vi: ts=2 sts=2 sw=2 ft=bash
+#
+# Usage:
+#   git ls-tracked [<commit>] [--] [<path>...]
+# List tracked files like `ls` command.
+set -u
+
+# Ref.: https://stackoverflow.com/questions/9765453/is-gits-semi-secret-empty-tree-object-reliable-and-why-is-there-not-a-symbolic
+readonly EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+
+main() {
+  [[ -n ${GIT_TRACE:+trace_on} ]] && set -x && trap 'set +x' EXIT ERR
+
+  if [[ -n "$(git rev-parse --revs-only --sq "$@")" ]]; then
+    local tree=$1
+    shift
+  fi
+
+  # A pathspec pattern can be used with `git diff`, but not with `git ls-tree`.
+  #git ls-tree -r --name-only --full-name --full-tree ${tree:-HEAD} "$@"
+  git diff --name-only ${EMPTY_TREE}..${tree:-} "$@"
+}
+
+main "$@"

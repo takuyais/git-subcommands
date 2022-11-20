@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# vi: ts=2 sts=2 sw=2 ft=bash
+#
+# Fuzzy find files.
+#
+# Usage:
+#   git fuzzy-find [<tree-ish>] <pattern>
+# Dependencies:
+#   git-ls-tracked
+set -u
+
+# Ref.: https://stackoverflow.com/questions/9765453/is-gits-semi-secret-empty-tree-object-reliable-and-why-is-there-not-a-symbolic
+readonly EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+
+main() {
+  [[ -n ${GIT_TRACE:+trace_on} ]] && set -x && trap 'set +x' EXIT ERR
+
+  local tree pattern
+  if (( $# <= 1 )); then
+    tree=HEAD
+    pattern="$1"
+  else
+    tree=$1
+    pattern="$2"
+  fi
+
+  local paths=($(git ls-tracked ${tree} | grep -Ei "${pattern}"))
+  #local paths=($(git diff --name-only ${EMPTY_TREE}..${tree} -- "${pattern}"))
+  if (( ${#paths[@]} == 0 )); then
+    echo 'error: no file found.' >&2
+    exit 1
+  fi
+
+  printf ${tree}:'%s\n' "${paths[@]}"
+}
+
+main "$@"
